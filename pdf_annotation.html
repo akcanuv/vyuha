@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gaudi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* Prevent scrollbars */
+    }
+    #controls {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background-color: #f0f0f0;
+    }
+    #controls h1 {
+      margin: 0;
+      margin-right: 20px;
+      font-size: 1.5em;
+    }
+    #canvas-container {
+      position: relative;
+      width: 100%;
+      height: calc(100vh - 60px); /* Adjust for the header and controls */
+      overflow: hidden;
+      border-top: 1px solid #ccc;
+    }
+    #pdf-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #selection-rectangle {
+      position: absolute;
+      border: 2px dashed red;
+      pointer-events: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <h1>Gaudi</h1>
+    <input type="file" id="file-input" accept="application/pdf" />
+    <button id="extract-snippet">Extract Snippet</button>
+  </div>
+  <div id="canvas-container">
+    <canvas id="pdf-canvas"></canvas>
+    <div id="selection-rectangle"></div>
+  </div>
+
+  <!-- Include PDF.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <script>
+    // Set the workerSrc property for PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+    const fileInput = document.getElementById('file-input');
+    const pdfCanvas = document.getElementById('pdf-canvas');
+    const ctx = pdfCanvas.getContext('2d');
+    let pdfDoc = null;
+    let pageNum = 1;
+    let scale = 1;
+    let pageRendering = false;
+
+    const canvasContainer = document.getElementById('canvas-container');
+    const selectionRect = document.getElementById('selection-rectangle');
+
+    let isSelecting = false;
+    let startX, startY;
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || file.type !== 'application/pdf') {
+        alert('Please upload a PDF file.');
+        return;
+      }
+
+      const fileReader = new FileReader();
+      fileReader.onload = function () {
+        const typedarray = new Uint8Array(this.result);
+        pdfjsLib.getDocument(typedarray).promise.then((pdfDoc_) => {
+          pdfDoc = pdfDoc_;
+          renderPage(pageNum);
+        });
+      };
+      fileReader.readAsArrayBuffer(file);
+    });
+
+    // Render the page
+    function renderPage(num) {
+      pageRendering = true;
+      pdfDoc.getPage(num).then((page) => {
+        // Get the viewport at scale 1
+        const viewport = page.getViewport({ scale: 1 });
+
+        // Adjust the scale to fit the canvas container
+        const containerWidth = canvasContainer.clientWidth;
+        const containerHeight = canvasContainer.clientHeight;
+
+        // Calculate scale to fit both width and height
+        const scaleX = containerWidth / viewport.width;
+        const scaleY = containerHeight / viewport.height;
+        const desiredScale = Math.min(scaleX, scaleY);
+
+        const adjustedViewport = page.getViewport({ scale: desiredScale });
+
+        pdfCanvas.width = adjustedViewport.width;
+        pdfCanvas.height = adjustedViewport.height;
+
+        pdfCanvas.style.width = `${adjustedViewport.width}px`;
+        pdfCanvas.style.height = `${adjustedViewport.height}px`;
+
+        pdfCanvas.style.left = `${(containerWidth - adjustedViewport.width) / 2}px`;
+        pdfCanvas.style.top = `${(containerHeight - adjustedViewport.height) / 2}px`;
+
+        selectionRect.style.display = 'none';
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: adjustedViewport,
+        };
+        const renderTask = page.render(renderContext);
+
+        renderTask.promise.then(() => {
+          pageRendering = false;
+        });
+      });
+    }
+
+    pdfCanvas.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      const rect = pdfCanvas.getBoundingClientRect();
+      startX = e.clientX - rect.left;
+      startY = e.clientY - rect.top;
+      selectionRect.style.left = `${e.clientX - canvasContainer.getBoundingClientRect().left}px`;
+      selectionRect.style.top = `${e.clientY - canvasContainer.getBoundingClientRect().top}px`;
+      selectionRect.style.width = '0px';
+      selectionRect.style.height = '0px';
+      selectionRect.style.display = 'block';
+      isSelecting = true;
+    });
+
+    pdfCanvas.addEventListener('mousemove', function (e) {
+      if (!isSelecting) return;
+      e.preventDefault();
+      const currentX = e.clientX - canvasContainer.getBoundingClientRect().left;
+      const currentY = e.clientY - canvasContainer.getBoundingClientRect().top;
+      const width = Math.abs(currentX - (parseInt(selectionRect.style.left)));
+      const height = Math.abs(currentY - (parseInt(selectionRect.style.top)));
+      selectionRect.style.width = `${width}px`;
+      selectionRect.style.height = `${height}px`;
+      selectionRect.style.left = `${Math.min(currentX, parseInt(selectionRect.style.left))}px`;
+      selectionRect.style.top = `${Math.min(currentY, parseInt(selectionRect.style.top))}px`;
+    });
+
+    pdfCanvas.addEventListener('mouseup', function (e) {
+      if (!isSelecting) return;
+      e.preventDefault();
+      isSelecting = false;
+    });
+
+    const extractButton = document.getElementById('extract-snippet');
+
+    extractButton.addEventListener('click', function () {
+      if (selectionRect.style.display === 'none' || selectionRect.style.width === '0px') {
+        alert('Please select an area to extract.');
+        return;
+      }
+
+      const canvasRect = pdfCanvas.getBoundingClientRect();
+      const containerRect = canvasContainer.getBoundingClientRect();
+      const sx = parseInt(selectionRect.style.left) - (canvasRect.left - containerRect.left);
+      const sy = parseInt(selectionRect.style.top) - (canvasRect.top - containerRect.top);
+      const sw = parseInt(selectionRect.style.width);
+      const sh = parseInt(selectionRect.style.height);
+
+      const snippetCanvas = document.createElement('canvas');
+      snippetCanvas.width = sw;
+      snippetCanvas.height = sh;
+      const snippetCtx = snippetCanvas.getContext('2d');
+
+      // Adjust for device pixel ratio
+      const dpr = window.devicePixelRatio || 1;
+      snippetCtx.drawImage(
+        pdfCanvas,
+        sx * dpr,
+        sy * dpr,
+        sw * dpr,
+        sh * dpr,
+        0,
+        0,
+        sw,
+        sh
+      );
+
+      const link = document.createElement('a');
+      link.href = snippetCanvas.toDataURL('image/png');
+      link.download = 'snippet.png';
+      link.click();
+
+      // Hide the selection rectangle
+      selectionRect.style.display = 'none';
+    });
+
+    // Handle window resize to adjust PDF scaling
+    window.addEventListener('resize', function () {
+      if (pdfDoc) {
+        renderPage(pageNum);
+      }
+    });
+  </script>
+</body>
+</html>
