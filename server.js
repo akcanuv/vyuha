@@ -7,63 +7,55 @@ import OpenAI from 'openai';
 
 const app = express();
 app.use(cors());
-app.use(bodyParser.json({ limit: '10mb' })); // Increase limit to handle large images
+app.use(bodyParser.json({ limit: '20mb' })); // Increase limit to handle large images
 
 // Initialize OpenAI API
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Set your API key in environment variables
+  apiKey: process.env.OPENAI_API_KEY, // Ensure your API key is set correctly
 });
 
 app.post('/api/chat', async (req, res) => {
   const { message, snippet, imageData } = req.body;
 
   try {
-    // Build the messages array according to OpenAI's expected format
-    const messages = [
-      {
-        role: 'user',
-        content: [
-          { type: 'text', text: message },
-        ],
-      },
-    ];
+    // Build the content array according to OpenAI's expected format
+    const contentArray = [{ type: 'text', text: message }];
 
     // Include the snippet if available
     if (snippet) {
-      messages[0].content.push({
-        type: 'text',
-        text: snippet,
+      contentArray.push({ type: 'text', text: snippet });
+    }
+
+    // Include the base64-encoded image data if available
+    if (imageData) {
+      contentArray.push({
+        type: 'image_base64',
+        image_base64: imageData.split(',')[1], // Remove the data URL prefix if present
       });
     }
 
-    // Include the image data if available
-    if (imageData) {
-      messages[0].content.push({
-        type: 'image_url',
-        image_url: {
-          url: imageData, // Assuming the API accepts base64 data URLs
-        },
-      });
-    }
+    const messages = [
+      {
+        role: 'user',
+        content: contentArray,
+      },
+    ];
 
     // OpenAI API request
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini', // Use the updated model name
       messages: messages,
       temperature: 1,
       max_tokens: 2048,
       top_p: 1,
       frequency_penalty: 0,
       presence_penalty: 0,
-      response_format: {
-        type: 'text',
-      },
     });
 
     // Extract the assistant's reply
-    res.json({ reply: response.data.choices[0].message.content.trim() });
+    res.json({ reply: response.choices[0].message.content.trim() });
   } catch (error) {
-    console.error(error);
+    console.error('OpenAI API Error:', error.response ? error.response.data : error.message);
     res.status(500).json({ error: 'Error communicating with OpenAI API' });
   }
 });
