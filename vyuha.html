@@ -7,10 +7,66 @@
   <link rel="stylesheet" href="styles.css">
   <h2 id="name">Gaudi</h2>
   <style>
-    /* Styles for the overlay canvas */
+    /* Reset margins and paddings */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* Set body and html to full height and width */
+    body, html {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Layout adjustments */
+    #main-container {
+      display: flex;
+      flex-direction: row;
+      width: 100%;
+      height: 100vh;
+    }
+
+    /* Viewing area (PDF or image) */
+    #pdf-container, #image-container {
+      flex-grow: 1;
+      overflow: auto;
+    }
+
+    /* Ensure the image-container is hidden initially */
+    #image-container {
+      display: none; /* Ensure it's hidden */
+      position: relative;
+      flex-grow: 1;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center; /* Center vertically */
+    }
+
+    /* Fixed width for the chat container */
+    #chat-container {
+      width: 300px; /* Fixed width */
+      overflow: auto;
+      flex-shrink: 0; /* Prevent it from shrinking */
+    }
+
+    /* Ensure the viewer container fills its parent */
     #viewerContainer {
       position: relative;
+      width: 100%;
+      height: 100%;
     }
+
+    /* Make the canvases responsive */
+    #pdf-canvas, #pdf-overlay-canvas {
+      width: 100%;
+      height: auto;
+    }
+
+    /* Ensure the overlay canvas is on top */
     #pdf-overlay-canvas {
       position: absolute;
       top: 0;
@@ -18,40 +74,68 @@
       z-index: 10;
       cursor: crosshair;
     }
-    /* Optional: Style for the extracted image */
-    #extracted-image {
-      margin-top: 20px;
-      border: 1px solid #ccc;
+
+    /* Styles for the enlarged image */
+    #enlarged-image {
+      max-width: 90%;
+      max-height: 80vh;
+      object-fit: contain; /* Maintains aspect ratio */
+    }
+
+    #back-to-pdf-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px 15px;
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    /* Adjust layout when image is displayed */
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <!-- PDF Container -->
-  <div id="pdf-container">
-    <!-- Controls -->
-    <div id="controls">
-      <div id="toolbar">
-        <input type="file" id="file-input" accept="application/pdf" />
-        <button id="prev-page">Previous Page</button>
-        <button id="next-page">Next Page</button>
-        <span>Page: <span id="page-num"></span> / <span id="page-count"></span></span>
-        <button id="zoom-in">Zoom In</button>
-        <button id="zoom-out">Zoom Out</button>
+  <!-- Main Container -->
+  <div id="main-container">
+    <!-- PDF Container -->
+    <div id="pdf-container">
+      <!-- Controls -->
+      <div id="controls">
+        <div id="toolbar">
+          <input type="file" id="file-input" accept="application/pdf" />
+          <button id="prev-page">Previous Page</button>
+          <button id="next-page">Next Page</button>
+          <span>Page: <span id="page-num"></span> / <span id="page-count"></span></span>
+          <button id="zoom-in">Zoom In</button>
+          <button id="zoom-out">Zoom Out</button>
+        </div>
+      </div>
+      <!-- PDF Viewer -->
+      <div id="viewerContainer">
+        <canvas id="pdf-canvas"></canvas>
+        <canvas id="pdf-overlay-canvas"></canvas>
       </div>
     </div>
-    <!-- PDF Viewer -->
-    <div id="viewerContainer">
-      <canvas id="pdf-canvas"></canvas>
-      <canvas id="pdf-overlay-canvas"></canvas>
-    </div>
-  </div>
 
-  <!-- Chat Container -->
-  <div id="chat-container">
-    <div id="chat-messages"></div>
-    <div id="chat-input-container">
-      <textarea id="chat-input" placeholder="Ask Gaudi..."></textarea>
-      <button id="send-button">Send</button>
+    <!-- Image Container -->
+    <div id="image-container">
+      <button id="back-to-pdf-button">GO BACK TO PDF</button>
+      <img id="enlarged-image" src="" alt="Selected Image">
+    </div>
+
+    <!-- Chat Container -->
+    <div id="chat-container">
+      <div id="chat-messages"></div>
+      <div id="chat-input-container">
+        <textarea id="chat-input" placeholder="Ask Gaudi..."></textarea>
+        <button id="send-button">Send</button>
+      </div>
     </div>
   </div>
 
@@ -84,31 +168,43 @@
     const zoomInBtn = document.getElementById('zoom-in');
     const zoomOutBtn = document.getElementById('zoom-out');
 
+    // Store extracted image data
+    let extractedImageBase64 = null;
+
+    // Variables for new elements
+    const imageContainer = document.getElementById('image-container');
+    const enlargedImage = document.getElementById('enlarged-image');
+    const backToPdfButton = document.getElementById('back-to-pdf-button');
+    const pdfContainer = document.getElementById('pdf-container');
+
+    // Ensure the image container is hidden initially
+    imageContainer.style.display = 'none';
+
     // Load PDF
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file || file.type !== 'application/pdf') {
+    const file = e.target.files[0];
+    if (!file || file.type !== 'application/pdf') {
         alert('Please upload a PDF file.');
         return;
-      }
+    }
 
-      const fileReader = new FileReader();
-      fileReader.onload = function () {
+    const fileReader = new FileReader();
+    fileReader.onload = function () {
         const typedarray = new Uint8Array(this.result);
         pdfjsLib.getDocument(typedarray).promise.then((pdfDoc_) => {
-          pdfDoc = pdfDoc_;
-          pageCountSpan.textContent = pdfDoc.numPages;
-          pageNum = 1;
-          renderPage(pageNum);
+        pdfDoc = pdfDoc_;
+        pageCountSpan.textContent = pdfDoc.numPages;
+        pageNum = 1;
+        renderPage(pageNum);
         });
-      };
-      fileReader.readAsArrayBuffer(file);
+    };
+    fileReader.readAsArrayBuffer(file);
     });
 
     // Render the page
     function renderPage(num) {
-      pageRendering = true;
-      pdfDoc.getPage(num).then((page) => {
+    pageRendering = true;
+    pdfDoc.getPage(num).then((page) => {
         const viewport = page.getViewport({ scale: scale });
         pdfCanvas.height = viewport.height;
         pdfCanvas.width = viewport.width;
@@ -116,60 +212,69 @@
         // Set overlay canvas dimensions
         pdfOverlayCanvas.width = pdfCanvas.width;
         pdfOverlayCanvas.height = pdfCanvas.height;
+
+        // Scale the canvas display size
+        const outputScale = window.devicePixelRatio || 1;
+        pdfCanvas.style.width = (viewport.width / outputScale) + 'px';
+        pdfCanvas.style.height = (viewport.height / outputScale) + 'px';
         pdfOverlayCanvas.style.width = pdfCanvas.style.width;
         pdfOverlayCanvas.style.height = pdfCanvas.style.height;
 
+        // Adjust the viewer container size
+        viewerContainer.style.width = '100%';
+        viewerContainer.style.height = '100%';
+
         const renderContext = {
-          canvasContext: ctx,
-          viewport: viewport,
+        canvasContext: ctx,
+        viewport: viewport,
         };
         const renderTask = page.render(renderContext);
 
         renderTask.promise.then(() => {
-          pageRendering = false;
-          pageNumSpan.textContent = pageNum;
-          if (pageNumPending !== null) {
+        pageRendering = false;
+        pageNumSpan.textContent = pageNum;
+        if (pageNumPending !== null) {
             renderPage(pageNumPending);
             pageNumPending = null;
-          }
+        }
         });
-      });
+    });
     }
 
     // Queue rendering of the next page
     function queueRenderPage(num) {
-      if (pageRendering) {
+    if (pageRendering) {
         pageNumPending = num;
-      } else {
+    } else {
         renderPage(num);
-      }
+    }
     }
 
     // Previous page
     prevPageBtn.addEventListener('click', () => {
-      if (pageNum <= 1) return;
-      pageNum--;
-      queueRenderPage(pageNum);
+    if (pageNum <= 1) return;
+    pageNum--;
+    queueRenderPage(pageNum);
     });
 
     // Next page
     nextPageBtn.addEventListener('click', () => {
-      if (pageNum >= pdfDoc.numPages) return;
-      pageNum++;
-      queueRenderPage(pageNum);
+    if (pageNum >= pdfDoc.numPages) return;
+    pageNum++;
+    queueRenderPage(pageNum);
     });
 
     // Zoom in
     zoomInBtn.addEventListener('click', () => {
-      scale += 0.25;
-      queueRenderPage(pageNum);
+    scale += 0.25;
+    queueRenderPage(pageNum);
     });
 
     // Zoom out
     zoomOutBtn.addEventListener('click', () => {
-      if (scale <= 0.5) return;
-      scale -= 0.25;
-      queueRenderPage(pageNum);
+    if (scale <= 0.5) return;
+    scale -= 0.25;
+    queueRenderPage(pageNum);
     });
 
     // Drawing functionality
@@ -177,76 +282,107 @@
     let startX, startY, currentX, currentY;
 
     pdfOverlayCanvas.addEventListener('mousedown', function(e) {
-      isDrawing = true;
-      const rect = pdfOverlayCanvas.getBoundingClientRect();
-      startX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
-      startY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
+    isDrawing = true;
+    const rect = pdfOverlayCanvas.getBoundingClientRect();
+    startX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
+    startY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
     });
 
     pdfOverlayCanvas.addEventListener('mousemove', function(e) {
-      if (!isDrawing) return;
-      const rect = pdfOverlayCanvas.getBoundingClientRect();
-      currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
-      currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
+    if (!isDrawing) return;
+    const rect = pdfOverlayCanvas.getBoundingClientRect();
+    currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
+    currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
 
-      // Clear the overlay canvas
-      overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
+    // Clear the overlay canvas
+    overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
 
-      // Draw the rectangle
-      overlayCtx.beginPath();
-      overlayCtx.rect(startX, startY, currentX - startX, currentY - startY);
-      overlayCtx.lineWidth = 2;
-      overlayCtx.strokeStyle = 'red';
-      overlayCtx.stroke();
+    // Draw the rectangle
+    overlayCtx.beginPath();
+    overlayCtx.rect(startX, startY, currentX - startX, currentY - startY);
+    overlayCtx.lineWidth = 2;
+    overlayCtx.strokeStyle = 'red';
+    overlayCtx.stroke();
     });
 
     pdfOverlayCanvas.addEventListener('mouseup', function(e) {
-      if (!isDrawing) return;
-      isDrawing = false;
-      const rect = pdfOverlayCanvas.getBoundingClientRect();
-      currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
-      currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
+    if (!isDrawing) return;
+    isDrawing = false;
+    const rect = pdfOverlayCanvas.getBoundingClientRect();
+    currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
+    currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
 
-      // Extract the image
-      extractImage();
+    // Extract the image
+    extractImage();
 
-      // Clear the overlay canvas
-      overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
+    // Clear the overlay canvas
+    overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
     });
 
     function extractImage() {
-      // Calculate the rectangle coordinates
-      const x = Math.min(startX, currentX);
-      const y = Math.min(startY, currentY);
-      const width = Math.abs(currentX - startX);
-      const height = Math.abs(currentY - startY);
+    // Calculate the rectangle coordinates
+    const x = Math.min(startX, currentX);
+    const y = Math.min(startY, currentY);
+    const width = Math.abs(currentX - startX);
+    const height = Math.abs(currentY - startY);
 
-      if (width === 0 || height === 0) {
+    if (width === 0 || height === 0) {
         alert('Please select a valid area.');
         return;
-      }
-
-      // Get the image data from the pdfCanvas
-      const imageData = ctx.getImageData(x, y, width, height);
-
-      // Create a new canvas to hold the extracted image
-      const extractedCanvas = document.createElement('canvas');
-      extractedCanvas.width = width;
-      extractedCanvas.height = height;
-      const extractedCtx = extractedCanvas.getContext('2d');
-
-      // Put the image data into the new canvas
-      extractedCtx.putImageData(imageData, 0, 0);
-
-      // Convert the canvas to an image (data URL)
-      const dataURL = extractedCanvas.toDataURL('image/png');
-
-      // Display the extracted image
-      const img = document.createElement('img');
-      img.src = dataURL;
-      img.id = 'extracted-image';
-      document.body.appendChild(img);
     }
+
+    // Get the image data from the pdfCanvas
+    const imageData = ctx.getImageData(x, y, width, height);
+
+    // Create a new canvas to hold the extracted image
+    const extractedCanvas = document.createElement('canvas');
+    extractedCanvas.width = width;
+    extractedCanvas.height = height;
+    const extractedCtx = extractedCanvas.getContext('2d');
+
+    // Put the image data into the new canvas
+    extractedCtx.putImageData(imageData, 0, 0);
+
+    // Convert the canvas to a data URL (base64)
+    const dataURL = extractedCanvas.toDataURL('image/png');
+
+    // Store the base64 data URL
+    extractedImageBase64 = dataURL;
+
+    // Show the enlarged image without distorting aspect ratio
+    showImageContainer(dataURL);
+    }
+
+    // Function to show the image container and hide the PDF
+    function showImageContainer(dataURL) {
+    // Set the source of the enlarged image
+    enlargedImage.src = dataURL;
+
+    // Hide the PDF container
+    pdfContainer.classList.add('hidden');
+
+    // Show the image container
+    imageContainer.style.display = 'flex'; // Use 'flex' to enable flexbox layout
+
+    // No need to adjust the main container layout or widths
+    }
+
+    // Function to go back to PDF view
+    backToPdfButton.addEventListener('click', function() {
+    // Hide the image container
+    imageContainer.style.display = 'none';
+
+    // Show the PDF container
+    pdfContainer.classList.remove('hidden');
+
+    // Clear the extracted image data
+    extractedImageBase64 = null;
+
+    // No need to adjust the main container layout or widths
+
+    // Re-render the page to reset the canvas dimensions
+    renderPage(pageNum);
+    });
 
     // Chat functionality
     const chatMessages = document.getElementById('chat-messages');
@@ -254,55 +390,69 @@
     const sendButton = document.getElementById('send-button');
 
     sendButton.addEventListener('click', async function () {
-      const message = chatInput.value.trim();
-      if (!message) return;
+    const message = chatInput.value.trim();
+    if (!message) return;
 
-      // Get the selected text from the PDF canvas
-      const selection = window.getSelection();
-      let snippet = '';
-      if (selection.rangeCount > 0) {
+    // Get the selected text from the PDF canvas
+    const selection = window.getSelection();
+    let snippet = '';
+    if (selection.rangeCount > 0) {
         snippet = selection.toString();
-      }
+    }
 
-      // Display user's message
-      addChatMessage('User', message);
+    // Display user's message
+    addChatMessage('User', message);
 
-      // Clear input
-      chatInput.value = '';
+    // Clear input
+    chatInput.value = '';
 
-      // Send to backend
-      try {
-        const response = await fetch('YOUR_BACKEND_URL/api/chat', { // Replace with your backend URL
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message, snippet }),
+    // Prepare the payload
+    const payload = {
+        message,
+        snippet,
+    };
+
+    // Include the image data if available
+    if (extractedImageBase64) {
+        payload.imageData = extractedImageBase64;
+    }
+
+    // Send to backend
+    try {
+        const response = await fetch('YOUR_BACKEND_URL/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
         });
         const data = await response.json();
         if (data.reply) {
-          addChatMessage('Gaudi', data.reply);
+        addChatMessage('Gaudi', data.reply);
         } else {
-          addChatMessage('Gaudi', 'Sorry, I could not process your request.');
+        addChatMessage('Gaudi', 'Sorry, I could not process your request.');
         }
-      } catch (error) {
+    } catch (error) {
         console.error(error);
         addChatMessage('Gaudi', 'Error communicating with the server.');
-      }
+    }
+
+    // Optionally, clear the image data after sending
+    // extractedImageBase64 = null;
     });
 
     function addChatMessage(sender, text) {
-      const messageElem = document.createElement('div');
-      messageElem.className = 'chat-message';
-      messageElem.innerHTML = `<strong>${sender}:</strong> ${text}`;
-      chatMessages.appendChild(messageElem);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
+    const messageElem = document.createElement('div');
+    messageElem.className = 'chat-message';
+    messageElem.innerHTML = `<strong>${sender}:</strong> ${text}`;
+    chatMessages.appendChild(messageElem);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     // Allow pressing Enter to send message
     chatInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendButton.click();
-      }
+    }
     });
   </script>
 </body>
