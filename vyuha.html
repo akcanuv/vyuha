@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gaudi PDF Annotator and Chat</title>
+  <!-- PDF.js viewer CSS -->
+  <link rel="stylesheet" href="styles.css">
+  <h2 id="name">Gaudi</h2>
+</head>
+<body>
+  <!-- PDF Container -->
+  <div id="pdf-container">
+    <!-- Controls -->
+    <div id="controls">
+      <div id="toolbar">
+        <input type="file" id="file-input" accept="application/pdf" />
+        <button id="prev-page">Previous Page</button>
+        <button id="next-page">Next Page</button>
+        <span>Page: <span id="page-num"></span> / <span id="page-count"></span></span>
+        <button id="zoom-in">Zoom In</button>
+        <button id="zoom-out">Zoom Out</button>
+      </div>
+    </div>
+    <!-- PDF Viewer -->
+    <div id="viewerContainer">
+      <canvas id="pdf-canvas"></canvas>
+    </div>
+  </div>
+
+  <!-- Chat Container -->
+  <div id="chat-container">
+    <div id="chat-messages"></div>
+    <div id="chat-input-container">
+      <textarea id="chat-input" placeholder="Ask Gaudi..."></textarea>
+      <button id="send-button">Send</button>
+    </div>
+  </div>
+
+  <!-- Include PDF.js library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+  <!-- Your custom scripts -->
+  <script>
+    // Set up PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+
+    // Initialize variables
+    const fileInput = document.getElementById('file-input');
+    const pdfCanvas = document.getElementById('pdf-canvas');
+    const ctx = pdfCanvas.getContext('2d');
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.5;
+
+    const viewerContainer = document.getElementById('viewerContainer');
+
+    // Buttons and page info
+    const prevPageBtn = document.getElementById('prev-page');
+    const nextPageBtn = document.getElementById('next-page');
+    const pageNumSpan = document.getElementById('page-num');
+    const pageCountSpan = document.getElementById('page-count');
+    const zoomInBtn = document.getElementById('zoom-in');
+    const zoomOutBtn = document.getElementById('zoom-out');
+
+    // Load PDF
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file || file.type !== 'application/pdf') {
+        alert('Please upload a PDF file.');
+        return;
+      }
+
+      const fileReader = new FileReader();
+      fileReader.onload = function () {
+        const typedarray = new Uint8Array(this.result);
+        pdfjsLib.getDocument(typedarray).promise.then((pdfDoc_) => {
+          pdfDoc = pdfDoc_;
+          pageCountSpan.textContent = pdfDoc.numPages;
+          pageNum = 1;
+          renderPage(pageNum);
+        });
+      };
+      fileReader.readAsArrayBuffer(file);
+    });
+
+    // Render the page
+    function renderPage(num) {
+      pageRendering = true;
+      pdfDoc.getPage(num).then((page) => {
+        const viewport = page.getViewport({ scale: scale });
+        pdfCanvas.height = viewport.height;
+        pdfCanvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport,
+        };
+        const renderTask = page.render(renderContext);
+
+        renderTask.promise.then(() => {
+          pageRendering = false;
+          pageNumSpan.textContent = pageNum;
+          if (pageNumPending !== null) {
+            renderPage(pageNumPending);
+            pageNumPending = null;
+          }
+        });
+      });
+    }
+
+    // Queue rendering of the next page
+    function queueRenderPage(num) {
+      if (pageRendering) {
+        pageNumPending = num;
+      } else {
+        renderPage(num);
+      }
+    }
+
+    // Previous page
+    prevPageBtn.addEventListener('click', () => {
+      if (pageNum <= 1) return;
+      pageNum--;
+      queueRenderPage(pageNum);
+    });
+
+    // Next page
+    nextPageBtn.addEventListener('click', () => {
+      if (pageNum >= pdfDoc.numPages) return;
+      pageNum++;
+      queueRenderPage(pageNum);
+    });
+
+    // Zoom in
+    zoomInBtn.addEventListener('click', () => {
+      scale += 0.25;
+      queueRenderPage(pageNum);
+    });
+
+    // Zoom out
+    zoomOutBtn.addEventListener('click', () => {
+      if (scale <= 0.5) return;
+      scale -= 0.25;
+      queueRenderPage(pageNum);
+    });
+
+    // Chat functionality
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const sendButton = document.getElementById('send-button');
+
+    sendButton.addEventListener('click', async function () {
+      const message = chatInput.value.trim();
+      if (!message) return;
+
+      // Get the selected text from the PDF canvas
+      const selection = window.getSelection();
+      let snippet = '';
+      if (selection.rangeCount > 0) {
+        snippet = selection.toString();
+      }
+
+      // Display user's message
+      addChatMessage('User', message);
+
+      // Clear input
+      chatInput.value = '';
+
+      // Send to backend
+      try {
+        const response = await fetch('YOUR_BACKEND_URL/api/chat', { // Replace with your backend URL
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, snippet }),
+        });
+        const data = await response.json();
+        if (data.reply) {
+          addChatMessage('Gaudi', data.reply);
+        } else {
+          addChatMessage('Gaudi', 'Sorry, I could not process your request.');
+        }
+      } catch (error) {
+        console.error(error);
+        addChatMessage('Gaudi', 'Error communicating with the server.');
+      }
+    });
+
+    function addChatMessage(sender, text) {
+      const messageElem = document.createElement('div');
+      messageElem.className = 'chat-message';
+      messageElem.innerHTML = `<strong>${sender}:</strong> ${text}`;
+      chatMessages.appendChild(messageElem);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Allow pressing Enter to send message
+    chatInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendButton.click();
+      }
+    });
+  </script>
+</body>
+</html>
