@@ -1,3 +1,19 @@
+// server.js
+
+import express from 'express';
+import cors from 'cors';
+import bodyParser from 'body-parser';
+import OpenAI from 'openai';
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json({ limit: '20mb' })); // Increase limit to handle large images
+
+// Initialize OpenAI API
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY, // Ensure your API key is set correctly
+});
+
 app.post('/api/chat', async (req, res) => {
     const { message, snippet } = req.body;
   
@@ -49,3 +65,8 @@ app.post('/api/chat', async (req, res) => {
       res.status(500).json({ error: 'Error communicating with OpenAI API' });
     }
   });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
