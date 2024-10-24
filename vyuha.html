@@ -157,6 +157,7 @@
     let pageRendering = false;
     let pageNumPending = null;
     let scale = 1.5;
+    let snippet = '';
 
     const viewerContainer = document.getElementById('viewerContainer');
 
@@ -346,10 +347,13 @@
     // Convert the canvas to a data URL (base64)
     const dataURL = extractedCanvas.toDataURL('image/png');
 
-    // Store the base64 data URL
-    extractedImageBase64 = dataURL;
+    // Extract the base64 data by removing the prefix
+    const base64Data = dataURL.replace(/^data:image\/png;base64,/, '');
 
-    // Show the enlarged image without distorting aspect ratio
+    // Assign the base64-encoded image to 'snippet'
+    snippet = base64Data;
+
+    // Show the enlarged image
     showImageContainer(dataURL);
     }
 
@@ -393,13 +397,6 @@
     const message = chatInput.value.trim();
     if (!message) return;
 
-    // Get the selected text from the PDF canvas
-    const selection = window.getSelection();
-    let snippet = '';
-    if (selection.rangeCount > 0) {
-        snippet = selection.toString();
-    }
-
     // Display user's message
     addChatMessage('User', message);
 
@@ -409,13 +406,8 @@
     // Prepare the payload
     const payload = {
         message,
-        snippet,
+        snippet, // Include the image data if available
     };
-
-    // Include the image data if available
-    if (extractedImageBase64) {
-        payload.imageData = extractedImageBase64;
-    }
 
     // Send to backend
     try {
@@ -434,9 +426,6 @@
         console.error(error);
         addChatMessage('Gaudi', 'Error communicating with the server.');
     }
-
-    // Optionally, clear the image data after sending
-    // extractedImageBase64 = null;
     });
 
     function addChatMessage(sender, text) {
