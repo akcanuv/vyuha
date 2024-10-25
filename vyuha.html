@@ -46,6 +46,16 @@
       justify-content: center; /* Center vertically */
     }
 
+    /* Chat controls */
+    #clear-chat {
+      margin: 5px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      align-self: flex-end;
+    }
+    
     /* Fixed width for the chat container */
     #chat-container {
       width: 300px; /* Fixed width */
@@ -131,6 +141,7 @@
 
     <!-- Chat Container -->
     <div id="chat-container">
+      <button id="clear-chat" title="Clear Chat">🗑️</button>
       <div id="chat-messages"></div>
       <div id="chat-input-container">
         <textarea id="chat-input" placeholder="Ask Gaudi..."></textarea>
@@ -392,6 +403,12 @@
     const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
     const sendButton = document.getElementById('send-button');
+    const clearChatBtn = document.getElementById('clear-chat');
+
+    // Event listener to clear chat messages
+    clearChatBtn.addEventListener('click', () => {
+      chatMessages.innerHTML = ''; // Clear all messages
+    });
 
     sendButton.addEventListener('click', async function () {
     const message = chatInput.value.trim();
