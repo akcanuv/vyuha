@@ -92,10 +92,24 @@
       object-fit: contain; /* Maintains aspect ratio */
     }
 
+    /* Style for the GO BACK TO PDF button */
     #back-to-pdf-button {
       position: absolute;
       top: 10px;
       left: 10px;
+      padding: 10px 15px;
+      background-color: #007BFF;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    /* Style for the SAVE EXAMPLE button */
+    #save-example-button {
+      position: absolute;
+      top: 10px;
+      right: 10px; /* Align to the top-right */
       padding: 10px 15px;
       background-color: #007BFF;
       color: #fff;
@@ -136,6 +150,7 @@
     <!-- Image Container -->
     <div id="image-container">
       <button id="back-to-pdf-button">GO BACK TO PDF</button>
+      <button id="save-example-button">SAVE EXAMPLE</button>
       <img id="enlarged-image" src="" alt="Selected Image">
     </div>
 

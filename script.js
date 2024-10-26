@@ -31,6 +31,7 @@ let extractedImageBase64 = null;
 const imageContainer = document.getElementById('image-container');
 const enlargedImage = document.getElementById('enlarged-image');
 const backToPdfButton = document.getElementById('back-to-pdf-button');
+const saveExampleButton = document.getElementById('save-example-button');
 const pdfContainer = document.getElementById('pdf-container');
 
 // Ensure the image container is hidden initially
@@ -369,3 +370,36 @@ chatInput.addEventListener('keydown', function (e) {
     sendButton.click();
   }
 });
+
+// Event listener for SAVE EXAMPLE button
+saveExampleButton.addEventListener('click', saveExample);
+
+// Function to save the current image and chat as a text file
+function saveExample() {
+  // Get the base64-encoded image data
+  const imageBase64 = snippet || 'No image selected.';
+
+  // Get the chat messages
+  const chatMessagesArray = Array.from(document.getElementsByClassName('chat-message'));
+  const chatContent = chatMessagesArray.map((msg, index) => {
+    const text = msg.querySelector('.message-text').textContent;
+    return (index % 2 === 0 ? 'Q: ' : 'A: ') + text;
+  }).join('\n');
+
+  // Create the content for the text file
+  const fileContent = `Image (base64):\n${imageBase64}\n\nChat Conversation:\n${chatContent}`;
+
+  // Create a Blob with the content
+  const blob = new Blob([fileContent], { type: 'text/plain' });
+
+  // Create a link to download the file
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'example.txt';
+
+  // Trigger the download
+  link.click();
+
+  // Clean up
+  URL.revokeObjectURL(link.href);
+}
