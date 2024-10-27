@@ -46,7 +46,7 @@ app.post('/api/chat', async (req, res) => {
   
       // OpenAI API request
       const response = await openai.chat.completions.create({
-        model: 'ft:gpt-4o-2024-08-06:akcanuv:dimension-v3:ALV2swqE',
+        model: 'ft:gpt-4o-2024-08-06:akcanuv:calculations-241026:AMezsqVO',
         messages: messages,
         temperature: 0,
         max_tokens: 2048,
