@@ -177,6 +177,19 @@
       font-size: 12px;
       margin-right: 5px;
     }
+
+    /* Chat header styling */
+    #chat-header {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    /* Clear Chat button styling */
+    #clear-chat {
+      padding: 5px;
+      font-size: 16px;
+      margin: 5px;
+    }
   </style>
 </head>
 <body>
@@ -207,7 +220,9 @@
 
     <!-- Chat Container -->
     <div id="chat-container">
-      <button id="clear-chat" title="Clear Chat">🗑️</button>
+      <div id="chat-header">
+        <button id="clear-chat" title="Clear Chat">🗑️</button>
+      </div>
       <div id="chat-messages"></div>
       <div id="chat-input-container">
         <textarea id="chat-input" placeholder="Ask Gaudi..."></textarea>

@@ -38,6 +38,11 @@ const chatContainer = document.getElementById('chat-container');
 // Ensure the image container is hidden initially
 imageContainer.style.display = 'none';
 
+// Reset the file input on page load
+window.onload = function() {
+  fileInput.value = '';
+};
+
 // Load PDF
 fileInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -329,6 +334,14 @@ function editMessage(messageContainer, messageText, editControls) {
     messageContainer.innerHTML = '';
     messageContainer.appendChild(messageText);
     messageContainer.appendChild(editControls);
+  });
+
+  // Allow pressing Enter to save the edited message
+  inputField.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveButton.click();
+    }
   });
 }
 
