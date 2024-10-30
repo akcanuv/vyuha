@@ -33,35 +33,36 @@ const enlargedImage = document.getElementById('enlarged-image');
 const backToPdfButton = document.getElementById('back-to-pdf-button');
 const saveExampleButton = document.getElementById('save-example-button');
 const pdfContainer = document.getElementById('pdf-container');
+const chatContainer = document.getElementById('chat-container');
 
 // Ensure the image container is hidden initially
 imageContainer.style.display = 'none';
 
 // Load PDF
 fileInput.addEventListener('change', (e) => {
-const file = e.target.files[0];
-if (!file || file.type !== 'application/pdf') {
+  const file = e.target.files[0];
+  if (!file || file.type !== 'application/pdf') {
     alert('Please upload a PDF file.');
     return;
-}
+  }
 
-const fileReader = new FileReader();
-fileReader.onload = function () {
+  const fileReader = new FileReader();
+  fileReader.onload = function () {
     const typedarray = new Uint8Array(this.result);
     pdfjsLib.getDocument(typedarray).promise.then((pdfDoc_) => {
-    pdfDoc = pdfDoc_;
-    pageCountSpan.textContent = pdfDoc.numPages;
-    pageNum = 1;
-    renderPage(pageNum);
+      pdfDoc = pdfDoc_;
+      pageCountSpan.textContent = pdfDoc.numPages;
+      pageNum = 1;
+      renderPage(pageNum);
     });
-};
-fileReader.readAsArrayBuffer(file);
+  };
+  fileReader.readAsArrayBuffer(file);
 });
 
 // Render the page
 function renderPage(num) {
-pageRendering = true;
-pdfDoc.getPage(num).then((page) => {
+  pageRendering = true;
+  pdfDoc.getPage(num).then((page) => {
     const viewport = page.getViewport({ scale: scale });
     pdfCanvas.height = viewport.height;
     pdfCanvas.width = viewport.width;
@@ -82,56 +83,56 @@ pdfDoc.getPage(num).then((page) => {
     viewerContainer.style.height = '100%';
 
     const renderContext = {
-    canvasContext: ctx,
-    viewport: viewport,
+      canvasContext: ctx,
+      viewport: viewport,
     };
     const renderTask = page.render(renderContext);
 
     renderTask.promise.then(() => {
-    pageRendering = false;
-    pageNumSpan.textContent = pageNum;
-    if (pageNumPending !== null) {
+      pageRendering = false;
+      pageNumSpan.textContent = pageNum;
+      if (pageNumPending !== null) {
         renderPage(pageNumPending);
         pageNumPending = null;
-    }
+      }
     });
-});
+  });
 }
 
 // Queue rendering of the next page
 function queueRenderPage(num) {
-if (pageRendering) {
+  if (pageRendering) {
     pageNumPending = num;
-} else {
+  } else {
     renderPage(num);
-}
+  }
 }
 
 // Previous page
 prevPageBtn.addEventListener('click', () => {
-if (pageNum <= 1) return;
-pageNum--;
-queueRenderPage(pageNum);
+  if (pageNum <= 1) return;
+  pageNum--;
+  queueRenderPage(pageNum);
 });
 
 // Next page
 nextPageBtn.addEventListener('click', () => {
-if (pageNum >= pdfDoc.numPages) return;
-pageNum++;
-queueRenderPage(pageNum);
+  if (pageNum >= pdfDoc.numPages) return;
+  pageNum++;
+  queueRenderPage(pageNum);
 });
 
 // Zoom in
 zoomInBtn.addEventListener('click', () => {
-scale += 0.25;
-queueRenderPage(pageNum);
+  scale += 0.25;
+  queueRenderPage(pageNum);
 });
 
 // Zoom out
 zoomOutBtn.addEventListener('click', () => {
-if (scale <= 0.5) return;
-scale -= 0.25;
-queueRenderPage(pageNum);
+  if (scale <= 0.5) return;
+  scale -= 0.25;
+  queueRenderPage(pageNum);
 });
 
 // Drawing functionality
@@ -139,109 +140,106 @@ let isDrawing = false;
 let startX, startY, currentX, currentY;
 
 pdfOverlayCanvas.addEventListener('mousedown', function(e) {
-isDrawing = true;
-const rect = pdfOverlayCanvas.getBoundingClientRect();
-startX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
-startY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
+  isDrawing = true;
+  const rect = pdfOverlayCanvas.getBoundingClientRect();
+  startX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
+  startY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
 });
 
 pdfOverlayCanvas.addEventListener('mousemove', function(e) {
-if (!isDrawing) return;
-const rect = pdfOverlayCanvas.getBoundingClientRect();
-currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
-currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
+  if (!isDrawing) return;
+  const rect = pdfOverlayCanvas.getBoundingClientRect();
+  currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
+  currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
 
-// Clear the overlay canvas
-overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
+  // Clear the overlay canvas
+  overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
 
-// Draw the rectangle
-overlayCtx.beginPath();
-overlayCtx.rect(startX, startY, currentX - startX, currentY - startY);
-overlayCtx.lineWidth = 2;
-overlayCtx.strokeStyle = 'red';
-overlayCtx.stroke();
+  // Draw the rectangle
+  overlayCtx.beginPath();
+  overlayCtx.rect(startX, startY, currentX - startX, currentY - startY);
+  overlayCtx.lineWidth = 2;
+  overlayCtx.strokeStyle = 'red';
+  overlayCtx.stroke();
 });
 
 pdfOverlayCanvas.addEventListener('mouseup', function(e) {
-if (!isDrawing) return;
-isDrawing = false;
-const rect = pdfOverlayCanvas.getBoundingClientRect();
-currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
-currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
+  if (!isDrawing) return;
+  isDrawing = false;
+  const rect = pdfOverlayCanvas.getBoundingClientRect();
+  currentX = (e.clientX - rect.left) * (pdfOverlayCanvas.width / rect.width);
+  currentY = (e.clientY - rect.top) * (pdfOverlayCanvas.height / rect.height);
 
-// Extract the image
-extractImage();
+  // Extract the image
+  extractImage();
 
-// Clear the overlay canvas
-overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
+  // Clear the overlay canvas
+  overlayCtx.clearRect(0, 0, pdfOverlayCanvas.width, pdfOverlayCanvas.height);
 });
 
 function extractImage() {
-// Calculate the rectangle coordinates
-const x = Math.min(startX, currentX);
-const y = Math.min(startY, currentY);
-const width = Math.abs(currentX - startX);
-const height = Math.abs(currentY - startY);
+  // Calculate the rectangle coordinates
+  const x = Math.min(startX, currentX);
+  const y = Math.min(startY, currentY);
+  const width = Math.abs(currentX - startX);
+  const height = Math.abs(currentY - startY);
 
-if (width === 0 || height === 0) {
+  if (width === 0 || height === 0) {
     alert('Please select a valid area.');
     return;
-}
+  }
 
-// Get the image data from the pdfCanvas
-const imageData = ctx.getImageData(x, y, width, height);
+  // Get the image data from the pdfCanvas
+  const imageData = ctx.getImageData(x, y, width, height);
 
-// Create a new canvas to hold the extracted image
-const extractedCanvas = document.createElement('canvas');
-extractedCanvas.width = width;
-extractedCanvas.height = height;
-const extractedCtx = extractedCanvas.getContext('2d');
+  // Create a new canvas to hold the extracted image
+  const extractedCanvas = document.createElement('canvas');
+  extractedCanvas.width = width;
+  extractedCanvas.height = height;
+  const extractedCtx = extractedCanvas.getContext('2d');
 
-// Put the image data into the new canvas
-extractedCtx.putImageData(imageData, 0, 0);
+  // Put the image data into the new canvas
+  extractedCtx.putImageData(imageData, 0, 0);
 
-// Convert the canvas to a data URL (base64)
-const dataURL = extractedCanvas.toDataURL('image/png');
+  // Convert the canvas to a data URL (base64)
+  const dataURL = extractedCanvas.toDataURL('image/png');
 
-// Extract the base64 data by removing the prefix
-const base64Data = dataURL.replace(/^data:image\/png;base64,/, '');
+  // Extract the base64 data by removing the prefix
+  const base64Data = dataURL.replace(/^data:image\/png;base64,/, '');
 
-// Assign the base64-encoded image to 'snippet'
-snippet = base64Data;
+  // Assign the base64-encoded image to 'snippet'
+  snippet = base64Data;
 
-// Show the enlarged image
-showImageContainer(dataURL);
+  // Show the enlarged image
+  showImageContainer(dataURL);
 }
 
 // Function to show the image container and hide the PDF
 function showImageContainer(dataURL) {
-// Set the source of the enlarged image
-enlargedImage.src = dataURL;
+  // Set the source of the enlarged image
+  enlargedImage.src = dataURL;
 
-// Hide the PDF container
-pdfContainer.classList.add('hidden');
+  // Show the image container
+  imageContainer.style.display = 'flex'; // Use 'flex' to enable flexbox layout
 
-// Show the image container
-imageContainer.style.display = 'flex'; // Use 'flex' to enable flexbox layout
+  // Adjust the width of the image container to exclude the chat window
+  const chatWidth = chatContainer.getBoundingClientRect().width;
+  imageContainer.style.width = `calc(100% - ${chatWidth}px)`;
 
-// No need to adjust the main container layout or widths
+  // Position the image container over the PDF container
+  imageContainer.style.left = '0';
 }
 
 // Function to go back to PDF view
 backToPdfButton.addEventListener('click', function() {
-// Hide the image container
-imageContainer.style.display = 'none';
+  // Hide the image container
+  imageContainer.style.display = 'none';
 
-// Show the PDF container
-pdfContainer.classList.remove('hidden');
+  // Clear the extracted image data
+  extractedImageBase64 = null;
 
-// Clear the extracted image data
-extractedImageBase64 = null;
-
-// No need to adjust the main container layout or widths
-
-// Re-render the page to reset the canvas dimensions
-renderPage(pageNum);
+  // Re-render the page to reset the canvas dimensions
+  renderPage(pageNum);
 });
 
 // Chat functionality
@@ -257,7 +255,9 @@ function createChatMessage(text, isGaudi = false) {
 
   const messageText = document.createElement('div');
   messageText.classList.add('message-text');
-  messageText.textContent = text;
+
+  // Use innerHTML to allow HTML and LaTeX rendering
+  messageText.innerHTML = text.replace(/\n/g, '<br>');
 
   messageContainer.appendChild(messageText);
 
@@ -279,11 +279,18 @@ function createChatMessage(text, isGaudi = false) {
 
   chatMessages.appendChild(messageContainer);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  // Trigger MathJax to render the new content
+  if (typeof MathJax !== 'undefined') {
+    MathJax.typesetPromise([messageContainer]).catch(function (err) {
+      console.error('MathJax typeset failed: ' + err.message);
+    });
+  }
 }
 
 // Function to edit a message
 function editMessage(messageContainer, messageText, editControls) {
-  const originalText = messageText.textContent;
+  const originalText = messageText.innerText;
   const inputField = document.createElement('textarea');
   inputField.classList.add('edit-input');
   inputField.value = originalText;
@@ -304,10 +311,17 @@ function editMessage(messageContainer, messageText, editControls) {
 
   // Save changes
   saveButton.addEventListener('click', () => {
-    messageText.textContent = inputField.value;
+    messageText.innerText = inputField.value;
     messageContainer.innerHTML = '';
     messageContainer.appendChild(messageText);
     messageContainer.appendChild(editControls);
+
+    // Re-render MathJax content
+    if (typeof MathJax !== 'undefined') {
+      MathJax.typesetPromise([messageContainer]).catch(function (err) {
+        console.error('MathJax typeset failed: ' + err.message);
+      });
+    }
   });
 
   // Cancel editing
@@ -382,7 +396,7 @@ function saveExample() {
   // Get the chat messages
   const chatMessagesArray = Array.from(document.getElementsByClassName('chat-message'));
   const chatContent = chatMessagesArray.map((msg, index) => {
-    const text = msg.querySelector('.message-text').textContent;
+    const text = msg.querySelector('.message-text').innerText;
     return (index % 2 === 0 ? 'Q: ' : 'A: ') + text;
   }).join('\n');
 
@@ -403,3 +417,45 @@ function saveExample() {
   // Clean up
   URL.revokeObjectURL(link.href);
 }
+
+// Draggable divider functionality
+const divider = document.getElementById('divider');
+let isResizing = false;
+
+divider.addEventListener('mousedown', function(e) {
+  isResizing = true;
+});
+
+document.addEventListener('mousemove', function(e) {
+  if (!isResizing) return;
+
+  // Calculate new widths
+  const mainWidth = document.getElementById('main-container').clientWidth;
+  let newPdfWidth = (e.clientX / mainWidth) * 100;
+  let newChatWidth = 100 - newPdfWidth;
+
+  // Set width limits
+  if (newPdfWidth < 20) {
+    newPdfWidth = 20;
+    newChatWidth = 80;
+  } else if (newChatWidth < 20) {
+    newPdfWidth = 80;
+    newChatWidth = 20;
+  }
+
+  // Apply new widths
+  pdfContainer.style.flex = `0 0 ${newPdfWidth}%`;
+  chatContainer.style.flex = `0 0 ${newChatWidth}%`;
+
+  // Update image container width if it's visible
+  if (imageContainer.style.display === 'flex') {
+    imageContainer.style.width = `calc(100% - ${chatContainer.getBoundingClientRect().width}px)`;
+  }
+
+  // Update divider position
+  divider.style.right = `${newChatWidth}%`;
+});
+
+document.addEventListener('mouseup', function() {
+  isResizing = false;
+});

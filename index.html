@@ -6,6 +6,8 @@
   <!-- PDF.js viewer CSS -->
   <link rel="stylesheet" href="styles.css">
   <h2 id="name">Gaudi</h2>
+  <!-- MathJax Library -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
   <style>
     /* Reset margins and paddings */
     * {
@@ -23,44 +25,41 @@
     /* Layout adjustments */
     #main-container {
       display: flex;
-      flex-direction: row;
       width: 100%;
       height: 100vh;
+      overflow: hidden;
+      position: relative; /* Added to contain absolutely positioned elements */
     }
 
     /* Viewing area (PDF or image) */
-    #pdf-container, #image-container {
-      flex-grow: 1;
+    #pdf-container {
+      flex: 1 1 auto;
       overflow: auto;
+      position: relative;
     }
 
-    /* Ensure the image-container is hidden initially */
-    #image-container {
-      display: none; /* Ensure it's hidden */
-      position: relative;
-      flex-grow: 1;
+    /* Chat container */
+    #chat-container {
+      flex: 0 0 30%;
+      min-width: 200px;
       overflow: auto;
+      border-left: 1px solid #ccc;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center; /* Center vertically */
+      position: relative; 
+      z-index: 30;        
     }
 
-    /* Chat controls */
-    #clear-chat {
-      margin: 5px;
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      font-size: 18px;
-      align-self: flex-end;
-    }
-    
-    /* Fixed width for the chat container */
-    #chat-container {
-      width: 300px; /* Fixed width */
-      overflow: auto;
-      flex-shrink: 0; /* Prevent it from shrinking */
+    /* Draggable divider */
+    #divider {
+      width: 5px;
+      cursor: col-resize;
+      background-color: #ddd;
+      position: absolute;
+      top: 0;
+      bottom: 0; 
+      right: 30%; /* Initial position matching chatContainer width */
+      z-index: 40;
     }
 
     /* Ensure the viewer container fills its parent */
@@ -86,10 +85,18 @@
     }
 
     /* Styles for the enlarged image */
-    #enlarged-image {
-      max-width: 90%;
-      max-height: 80vh;
-      object-fit: contain; /* Maintains aspect ratio */
+    #image-container {
+      display: none; /* Initially hidden */
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: calc(100% - var(--chat-width, 30%)); /* Adjust width to exclude chat */
+      height: 100%;
+      background-color: #fff;
+      z-index: 20;
+      overflow: auto;
+      align-items: center;
+      justify-content: center;
     }
 
     /* Style for the GO BACK TO PDF button */
@@ -103,24 +110,72 @@
       border: none;
       cursor: pointer;
       font-size: 16px;
+      z-index: 30;
     }
 
     /* Style for the SAVE EXAMPLE button */
     #save-example-button {
       position: absolute;
       top: 10px;
-      right: 10px; /* Align to the top-right */
+      right: 10px;
       padding: 10px 15px;
       background-color: #007BFF;
       color: #fff;
       border: none;
       cursor: pointer;
       font-size: 16px;
+      z-index: 30;
     }
 
     /* Adjust layout when image is displayed */
     .hidden {
       display: none;
+    }
+
+    /* Chat messages styling */
+    #chat-messages {
+      flex: 1 1 auto;
+      padding: 10px;
+      overflow-y: auto;
+    }
+
+    /* Chat input container */
+    #chat-input-container {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+
+    #chat-input {
+      flex: 1;
+      resize: none;
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    #send-button {
+      padding: 5px 10px;
+      margin-left: 5px;
+      font-size: 14px;
+    }
+
+    /* Chat message styling */
+    .chat-message {
+      margin-bottom: 10px;
+    }
+
+    .message-text {
+      white-space: pre-wrap; /* Preserves line breaks */
+    }
+
+    /* Edit controls */
+    .edit-controls {
+      margin-top: 5px;
+    }
+
+    .edit-button, .save-button, .cancel-button {
+      font-size: 12px;
+      margin-right: 5px;
     }
   </style>
 </head>
@@ -147,12 +202,8 @@
       </div>
     </div>
 
-    <!-- Image Container -->
-    <div id="image-container">
-      <button id="back-to-pdf-button">GO BACK TO PDF</button>
-      <button id="save-example-button">SAVE EXAMPLE</button>
-      <img id="enlarged-image" src="" alt="Selected Image">
-    </div>
+    <!-- Draggable Divider -->
+    <div id="divider"></div>
 
     <!-- Chat Container -->
     <div id="chat-container">
@@ -162,6 +213,13 @@
         <textarea id="chat-input" placeholder="Ask Gaudi..."></textarea>
         <button id="send-button">Send</button>
       </div>
+    </div>
+
+    <!-- Image Container (Moved inside main-container for absolute positioning) -->
+    <div id="image-container">
+      <button id="back-to-pdf-button">GO BACK TO PDF</button>
+      <button id="save-example-button">SAVE EXAMPLE</button>
+      <img id="enlarged-image" src="" alt="Selected Image">
     </div>
   </div>
 
