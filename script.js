@@ -247,6 +247,39 @@ backToPdfButton.addEventListener('click', function() {
   renderPage(pageNum);
 });
 
+// Event listener for SAVE EXAMPLE button
+saveExampleButton.addEventListener('click', saveExample);
+
+// Function to save the current image and chat as a text file
+function saveExample() {
+  // Get the base64-encoded image data
+  const imageBase64 = snippet || 'No image selected.';
+
+  // Get the chat messages
+  const chatMessagesArray = Array.from(document.getElementsByClassName('chat-message'));
+  const chatContent = chatMessagesArray.map((msg, index) => {
+    const text = msg.querySelector('.message-text').innerText;
+    return (index % 2 === 0 ? 'Q: ' : 'A: ') + text;
+  }).join('\n');
+
+  // Create the content for the text file
+  const fileContent = `Image (base64):\n${imageBase64}\n\nChat Conversation:\n${chatContent}`;
+
+  // Create a Blob with the content
+  const blob = new Blob([fileContent], { type: 'text/plain' });
+
+  // Create a link to download the file
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'example.txt';
+
+  // Trigger the download
+  link.click();
+
+  // Clean up
+  URL.revokeObjectURL(link.href);
+}
+
 // Chat functionality
 const chatMessages = document.getElementById('chat-messages');
 const chatInput = document.getElementById('chat-input');
@@ -314,6 +347,9 @@ function editMessage(messageContainer, messageText, editControls) {
   messageContainer.appendChild(saveButton);
   messageContainer.appendChild(cancelButton);
 
+  // Focus on the input field
+  inputField.focus();
+
   // Save changes
   saveButton.addEventListener('click', () => {
     messageText.innerText = inputField.value;
@@ -336,9 +372,9 @@ function editMessage(messageContainer, messageText, editControls) {
     messageContainer.appendChild(editControls);
   });
 
-  // Allow pressing Enter to save the edited message
+  // Allow pressing Shift+Enter to save the edited message
   inputField.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       saveButton.click();
     }
@@ -356,6 +392,8 @@ async function sendMessage() {
   if (!message) return;
 
   createChatMessage(message, false); // User message
+
+  chatInput.value = ''; // Clear input immediately after sending
 
   // Prepare the payload
   const payload = {
@@ -381,8 +419,6 @@ async function sendMessage() {
     console.error(error);
     createChatMessage('Error communicating with the server.', true); // Display error message and make it editable
   }
-
-  chatInput.value = ''; // Clear input
 }
 
 // Event listener for sending a message
@@ -390,46 +426,13 @@ sendButton.addEventListener('click', () => {
   sendMessage();
 });
 
-// Allow pressing Enter to send a message
+// Allow pressing Shift+Enter to send a message
 chatInput.addEventListener('keydown', function (e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
+  if (e.key === 'Enter' && e.shiftKey) {
     e.preventDefault();
     sendButton.click();
   }
 });
-
-// Event listener for SAVE EXAMPLE button
-saveExampleButton.addEventListener('click', saveExample);
-
-// Function to save the current image and chat as a text file
-function saveExample() {
-  // Get the base64-encoded image data
-  const imageBase64 = snippet || 'No image selected.';
-
-  // Get the chat messages
-  const chatMessagesArray = Array.from(document.getElementsByClassName('chat-message'));
-  const chatContent = chatMessagesArray.map((msg, index) => {
-    const text = msg.querySelector('.message-text').innerText;
-    return (index % 2 === 0 ? 'Q: ' : 'A: ') + text;
-  }).join('\n');
-
-  // Create the content for the text file
-  const fileContent = `Image (base64):\n${imageBase64}\n\nChat Conversation:\n${chatContent}`;
-
-  // Create a Blob with the content
-  const blob = new Blob([fileContent], { type: 'text/plain' });
-
-  // Create a link to download the file
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = 'example.txt';
-
-  // Trigger the download
-  link.click();
-
-  // Clean up
-  URL.revokeObjectURL(link.href);
-}
 
 // Draggable divider functionality
 const divider = document.getElementById('divider');
